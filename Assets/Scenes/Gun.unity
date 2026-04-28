@@ -175,10 +175,22 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 38fa3ab3a5e65634ba71a94d6bde3368, type: 2}
+    - target: {fileID: -1748870114207317541, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.008
+      objectReference: {fileID: 0}
+    - target: {fileID: 612318929138632651, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 38fa3ab3a5e65634ba71a94d6bde3368, type: 2}
     - target: {fileID: 919132149155446097, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
       propertyPath: m_Name
-      value: Pistol
+      value: player
       objectReference: {fileID: 0}
+    - target: {fileID: 5797384429611982230, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 80c841c89572ec6478f796df00a616f3, type: 2}
     - target: {fileID: 6291762799406580743, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -192,12 +204,18 @@ PrefabInstance:
     - {fileID: -1510381904493913627, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
-      insertIndex: 0
+      insertIndex: -1
       addedObject: {fileID: 1066553636}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
       insertIndex: -1
       addedObject: {fileID: 282307893}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 282307894}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 282307895}
   m_SourcePrefab: {fileID: 100100000, guid: 2ff5ab711605262439bb0f167edcedc5, type: 3}
 --- !u!1 &282307891 stripped
 GameObject:
@@ -219,7 +237,7 @@ Animator:
   m_GameObject: {fileID: 282307891}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: d537abed494da434d99e2b741ec35eb7, type: 2}
+  m_Controller: {fileID: 9100000, guid: 23d22e6bdc48ec7469e0c9d4a1e68595, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -231,6 +249,52 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &282307894
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 282307891}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb3070eebbbbc6f40a3168e0b3614075, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FPSController
+  controller: {fileID: 282307895}
+  cameraPivot: {fileID: 1066553636}
+  walkSpeed: 5
+  runSpeed: 9
+  mouseSensitivity: 200
+  gravity: -9.8
+  maxAmmo: 30
+  fireRate: 0.2
+  reloadTime: 1.5
+--- !u!143 &282307895
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 282307891}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 3.66
+  m_Radius: 0.56
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: -0.53, z: 0}
 --- !u!1 &305713532
 GameObject:
   m_ObjectHideFlags: 0
@@ -668,8 +732,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1066553633}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.103, y: 0.611, z: -0.055}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.102996826, y: 0.61100006, z: -0.054992676}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
