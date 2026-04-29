@@ -3,15 +3,20 @@ using System.Collections;
 
 public class FPSController : MonoBehaviour
 {
+    [Header("References")]
     public CharacterController controller;
     public Transform cameraPivot;
+    public Transform cameraHolder;
+    public Animator anim;
 
-    Animator anim;
-
+    [Header("Movement")]
     public float walkSpeed = 5f;
     public float runSpeed = 9f;
-    public float mouseSensitivity = 200f;
     public float gravity = -9.8f;
+
+    [Header("Mouse Look")]
+    public float mouseSensitivity = 200f;
+    float xRotation = 0f;
 
     [Header("Gun")]
     public int maxAmmo = 30;
@@ -23,16 +28,35 @@ public class FPSController : MonoBehaviour
     public float reloadTime = 1.5f;
     bool isReloading = false;
 
+    [Header("Recoil")]
+    public float recoilAmount = 2f;
+    public float recoilRecoverySpeed = 5f;
+    float recoilX;
+
+    [Header("Jump")]
+    public float jumpForce = 5f;
+
+    [Header("Crouch")]
+    public float crouchHeight = 1f;
+    public float crouchCameraY = 1f;
+    float normalHeight;
+    float normalCameraY;
+    bool isCrouching = false;
+
     float yVelocity;
-    float xRotation = 0f;
 
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        anim = GetComponentInChildren<Animator>();
         currentAmmo = maxAmmo;
+
+        normalHeight = controller.height;
+        normalCameraY = cameraHolder.localPosition.y;
+
+        if (anim == null)
+            Debug.LogError("❌ Animator not assigned!");
     }
 
     void Update()
@@ -45,9 +69,13 @@ public class FPSController : MonoBehaviour
         Shoot();
 
         if (Input.GetKeyDown(KeyCode.R))
-        {
             StartCoroutine(Reload());
-        }
+
+        if (Input.GetKeyDown(KeyCode.C))
+            ToggleCrouch();
+
+        if (Input.GetKeyDown(KeyCode.Space))
+            Jump();
     }
 
     void Look()
@@ -55,7 +83,10 @@ public class FPSController : MonoBehaviour
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
 
+        recoilX = Mathf.Lerp(recoilX, 0f, Time.deltaTime * recoilRecoverySpeed);
+
         xRotation -= mouseY;
+        xRotation -= recoilX;
         xRotation = Mathf.Clamp(xRotation, -80f, 80f);
 
         cameraPivot.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
@@ -69,6 +100,8 @@ public class FPSController : MonoBehaviour
 
         float speed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
 
+        if (isCrouching) speed *= 0.5f;
+
         Vector3 move = transform.right * x + transform.forward * z;
 
         if (controller.isGrounded && yVelocity < 0)
@@ -81,44 +114,98 @@ public class FPSController : MonoBehaviour
 
         controller.Move(velocity * Time.deltaTime);
 
-        // 🎬 Animation
         float speedPercent = move.magnitude;
-        anim.SetFloat("Speed", speedPercent);
+        if (speedPercent < 0.1f) speedPercent = 0f;
+
+        anim.SetFloat("Speed", speedPercent, 0.1f, Time.deltaTime);
         anim.SetBool("isRunning", speed == runSpeed);
     }
 
-    // 🔫 ยิง
+    // 🔫 ยิง (มีระบบแม็กหมด)
     void Shoot()
     {
-        if (currentAmmo <= 0) return;
+        // ❗ แม็กหมด
+        if (currentAmmo <= 0)
+        {
+            if (Input.GetButtonDown("Fire1"))
+            {
+                anim.SetTrigger("Empty"); // 🎬 animation แม็กหมด
+            }
+            return;
+        }
 
+        // 🔫 ยิงปกติ
         if (Input.GetButtonDown("Fire1") && Time.time >= nextFireTime)
         {
             nextFireTime = Time.time + fireRate;
             currentAmmo--;
 
             anim.SetTrigger("Shoot");
+            recoilX += recoilAmount;
 
+            Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             RaycastHit hit;
-            if (Physics.Raycast(cameraPivot.position, cameraPivot.forward, out hit, 100f))
+
+            if (Physics.Raycast(ray, out hit, 100f))
             {
                 Debug.Log("Hit: " + hit.transform.name);
             }
         }
     }
 
-    // 🔄 รีโหลด
     IEnumerator Reload()
     {
         if (isReloading) yield break;
 
         isReloading = true;
-
-        anim.SetTrigger("Reload"); // 🎬 เล่น animation
+        anim.SetTrigger("Reload");
 
         yield return new WaitForSeconds(reloadTime);
 
         currentAmmo = maxAmmo;
         isReloading = false;
+    }
+
+    void Jump()
+    {
+        if (!controller.isGrounded) return;
+
+        yVelocity = Mathf.Sqrt(jumpForce * -2f * gravity);
+        anim.SetTrigger("Jump");
+    }
+
+    void ToggleCrouch()
+    {
+        isCrouching = !isCrouching;
+
+        if (isCrouching)
+        {
+            controller.height = crouchHeight;
+            StartCoroutine(SmoothCrouch(crouchCameraY));
+        }
+        else
+        {
+            controller.height = normalHeight;
+            StartCoroutine(SmoothCrouch(normalCameraY));
+        }
+
+        controller.center = new Vector3(0, controller.height / 2f, 0);
+    }
+
+    IEnumerator SmoothCrouch(float targetY)
+    {
+        float startY = cameraHolder.localPosition.y;
+        float time = 0f;
+
+        while (time < 0.2f)
+        {
+            float y = Mathf.Lerp(startY, targetY, time / 0.2f);
+            cameraHolder.localPosition = new Vector3(0, y, 0);
+
+            time += Time.deltaTime;
+            yield return null;
+        }
+
+        cameraHolder.localPosition = new Vector3(0, targetY, 0);
     }
 }
