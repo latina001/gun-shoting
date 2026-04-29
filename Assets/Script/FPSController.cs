@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections;
-using TMPro; // 🔥 ใช้ตัวนี้แทน UI.Text
 
 public class FPSController : MonoBehaviour
 {
@@ -52,10 +51,8 @@ public class FPSController : MonoBehaviour
     public float normalSensitivity = 200f;
     public float zoomSensitivity = 100f;
 
-    [Header("UI")]
-    public TMP_Text ammoText; // 🔥 เปลี่ยนตรงนี้
-
     Camera cam;
+
     float yVelocity;
 
     void Start()
@@ -76,15 +73,9 @@ public class FPSController : MonoBehaviour
 
     void Update()
     {
-        if (!controller.enabled)
-        {
-            anim.SetFloat("Speed", 0f);
-            return;
-        }
-
         Look();
         Move();
-        Zoom();
+        Zoom(); // 👈 เพิ่มตรงนี้
 
         if (isReloading) return;
 
@@ -98,12 +89,6 @@ public class FPSController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Space))
             Jump();
-
-        // 🔫 UI
-        if (ammoText != null)
-        {
-            ammoText.text = currentAmmo + " / " + maxAmmo;
-        }
     }
 
     void Look()
@@ -151,6 +136,7 @@ public class FPSController : MonoBehaviour
         anim.SetBool("isRunning", speed == runSpeed);
     }
 
+    // 🔫 ยิง
     void Shoot()
     {
         if (currentAmmo <= 0)
@@ -173,6 +159,9 @@ public class FPSController : MonoBehaviour
 
             if (Physics.Raycast(ray, out hit, 100f))
             {
+                Debug.Log("Hit: " + hit.transform.name);
+
+                // 💥 ยิงโดน Enemy
                 if (hit.transform.CompareTag("Enemy"))
                 {
                     Enemy enemy = hit.transform.GetComponent<Enemy>();
@@ -241,15 +230,21 @@ public class FPSController : MonoBehaviour
         cameraHolder.localPosition = new Vector3(0, targetY, 0);
     }
 
+    // 🎯 Zoom (คลิกขวา)
     void Zoom()
     {
         bool isAimingNow = Input.GetMouseButton(1);
 
         if (isAimingNow)
+        {
             cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, zoomFOV, Time.deltaTime * zoomSpeed);
+        }
         else
+        {
             cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, normalFOV, Time.deltaTime * zoomSpeed);
+        }
 
+        // 🎬 Animation
         anim.SetBool("isAiming", isAimingNow);
     }
 }

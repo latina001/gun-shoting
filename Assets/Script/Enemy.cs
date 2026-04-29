@@ -3,132 +3,80 @@ using UnityEngine.AI;
 
 public class Enemy : MonoBehaviour
 {
-    [Header("References")]
     public NavMeshAgent agent;
     public Transform player;
     public Animator anim;
-    public Transform shootPoint;
 
     [Header("Stats")]
     public float health = 100f;
     public float detectRange = 15f;
-    public float attackRange = 10f; // 🎯 ระยะยิง
+    public float attackRange = 2f;
     public float damage = 10f;
 
-    [Header("Shooting")]
-    public float fireRate = 1f;
-    float nextFireTime = 0f;
-
-    [Range(0f, 1f)]
-    public float accuracy = 0.8f;
-    public float shootRange = 50f;
-
-    bool isAggro = false;
+    float attackCooldown = 1.5f;
+    float nextAttackTime = 0f;
 
     void Start()
     {
-        // 🔥 บังคับให้ Enemy อยู่บน NavMesh
+        // 🔥 บังคับให้ Enemy ไปอยู่บน NavMesh
         NavMeshHit hit;
         if (NavMesh.SamplePosition(transform.position, out hit, 5f, NavMesh.AllAreas))
         {
             transform.position = hit.position;
         }
-
-        if (shootPoint == null)
-            shootPoint = transform;
+        else
+        {
+            Debug.LogError("❌ Enemy not on NavMesh!");
+        }
     }
 
     void Update()
     {
-        if (!agent.isOnNavMesh) return;
+        if (!agent.isOnNavMesh) return; // ❗ กัน error
 
         float distance = Vector3.Distance(transform.position, player.position);
 
-        if (distance <= detectRange || isAggro)
+        // 👀 เห็นผู้เล่น
+        if (distance <= detectRange)
         {
-            // 👀 หันหน้าไปหาผู้เล่น
-            Vector3 dir = player.position - transform.position;
-            dir.y = 0;
-            transform.rotation = Quaternion.LookRotation(dir);
+            agent.SetDestination(player.position);
 
-            // 🏃 ถ้าไกลเกิน → เดินเข้า
-            if (distance > attackRange + 1f)
-            {
-                agent.isStopped = false;
-                agent.SetDestination(player.position);
-                anim.SetBool("isWalking", true);
-            }
-            else
-            {
-                // 🛑 อยู่ในระยะยิง → หยุด
-                agent.isStopped = true;
-                anim.SetBool("isWalking", false);
+            anim.SetBool("isWalking", true);
 
-                Shoot();
+            // 💀 เข้าใกล้ = โจมตี
+            if (distance <= attackRange)
+            {
+                Attack();
             }
         }
         else
         {
-            agent.isStopped = true;
             anim.SetBool("isWalking", false);
         }
     }
 
-    // 🔫 ยิง
-    void Shoot()
+    void Attack()
     {
-        if (Time.time < nextFireTime) return;
+        if (!agent.isOnNavMesh) return; // ❗ กัน error
 
-        nextFireTime = Time.time + fireRate;
+        agent.SetDestination(transform.position);
 
-        anim.SetTrigger("Shoot");
-
-        // 🎯 ยิงไปกลางตัว player จริง
-        Vector3 target;
-        Collider col = player.GetComponent<Collider>();
-
-        if (col != null)
-            target = col.bounds.center;
-        else
-            target = player.position;
-
-        Vector3 direction = (target - shootPoint.position).normalized;
-
-        // 🎲 ความมั่ว
-        float spread = 1f - accuracy;
-        direction += new Vector3(
-            Random.Range(-spread, spread),
-            Random.Range(-spread, spread),
-            Random.Range(-spread, spread)
-        );
-
-        // 🔴 debug ray
-        Debug.DrawRay(shootPoint.position, direction * shootRange, Color.red, 1f);
-
-        RaycastHit hit;
-        if (Physics.Raycast(shootPoint.position, direction, out hit, shootRange))
+        if (Time.time >= nextAttackTime)
         {
-            Debug.Log("Enemy ยิงโดน: " + hit.transform.name);
+            nextAttackTime = Time.time + attackCooldown;
 
-            if (hit.transform.CompareTag("Player"))
-            {
-                PlayerHealth ph = hit.transform.GetComponentInParent<PlayerHealth>();
-                if (ph != null)
-                {
-                    ph.TakeDamage(damage);
-                }
-            }
+            anim.SetTrigger("Attack");
+
+            Debug.Log("Enemy Attack!");
         }
     }
 
-    // ❤️ โดนยิง
+    // ❤️ รับดาเมจ
     public void TakeDamage(float amount)
     {
         health -= amount;
 
-        isAggro = true; // 🔥 ยิง = โกรธ
-
-        Debug.Log("Enemy HP: " + health);
+        Debug.Log("Enemy HP: " + health); // 🔥 เอาไว้เช็ค
 
         if (health <= 0)
         {
