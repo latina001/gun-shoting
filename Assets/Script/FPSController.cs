@@ -43,6 +43,16 @@ public class FPSController : MonoBehaviour
     float normalCameraY;
     bool isCrouching = false;
 
+    [Header("Zoom")]
+    public float normalFOV = 60f;
+    public float zoomFOV = 40f;
+    public float zoomSpeed = 10f;
+
+    public float normalSensitivity = 200f;
+    public float zoomSensitivity = 100f;
+
+    Camera cam;
+
     float yVelocity;
 
     void Start()
@@ -55,6 +65,8 @@ public class FPSController : MonoBehaviour
         normalHeight = controller.height;
         normalCameraY = cameraHolder.localPosition.y;
 
+        cam = Camera.main;
+
         if (anim == null)
             Debug.LogError("❌ Animator not assigned!");
     }
@@ -63,6 +75,7 @@ public class FPSController : MonoBehaviour
     {
         Look();
         Move();
+        Zoom(); // 👈 เพิ่มตรงนี้
 
         if (isReloading) return;
 
@@ -80,8 +93,10 @@ public class FPSController : MonoBehaviour
 
     void Look()
     {
-        float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+        float currentSensitivity = Input.GetMouseButton(1) ? zoomSensitivity : normalSensitivity;
+
+        float mouseX = Input.GetAxis("Mouse X") * currentSensitivity * Time.deltaTime;
+        float mouseY = Input.GetAxis("Mouse Y") * currentSensitivity * Time.deltaTime;
 
         recoilX = Mathf.Lerp(recoilX, 0f, Time.deltaTime * recoilRecoverySpeed);
 
@@ -121,20 +136,16 @@ public class FPSController : MonoBehaviour
         anim.SetBool("isRunning", speed == runSpeed);
     }
 
-    // 🔫 ยิง (มีระบบแม็กหมด)
+    // 🔫 ยิง
     void Shoot()
     {
-        // ❗ แม็กหมด
         if (currentAmmo <= 0)
         {
             if (Input.GetButtonDown("Fire1"))
-            {
-                anim.SetTrigger("Empty"); // 🎬 animation แม็กหมด
-            }
+                anim.SetTrigger("Empty");
             return;
         }
 
-        // 🔫 ยิงปกติ
         if (Input.GetButtonDown("Fire1") && Time.time >= nextFireTime)
         {
             nextFireTime = Time.time + fireRate;
@@ -143,7 +154,7 @@ public class FPSController : MonoBehaviour
             anim.SetTrigger("Shoot");
             recoilX += recoilAmount;
 
-            Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             RaycastHit hit;
 
             if (Physics.Raycast(ray, out hit, 100f))
@@ -207,5 +218,23 @@ public class FPSController : MonoBehaviour
         }
 
         cameraHolder.localPosition = new Vector3(0, targetY, 0);
+    }
+
+    // 🎯 Zoom (คลิกขวา)
+    void Zoom()
+    {
+        bool isAimingNow = Input.GetMouseButton(1);
+
+        if (isAimingNow)
+        {
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, zoomFOV, Time.deltaTime * zoomSpeed);
+        }
+        else
+        {
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, normalFOV, Time.deltaTime * zoomSpeed);
+        }
+
+        // 🎬 Animation
+        anim.SetBool("isAiming", isAimingNow);
     }
 }
