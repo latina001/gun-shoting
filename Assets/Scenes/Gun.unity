@@ -6684,10 +6684,14 @@ MonoBehaviour:
   agent: {fileID: 1908023796}
   player: {fileID: 1220619281}
   anim: {fileID: 1908023792}
+  shootPoint: {fileID: 0}
   health: 100
   detectRange: 15
   attackRange: 2
   damage: 10
+  fireRate: 1
+  accuracy: 0.85
+  shootRange: 50
 --- !u!136 &1908023795
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -8100,8 +8104,33 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 9084865290691496502, guid: 73f1fc87b1baf2841af1e310df85c941, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4249777357728954074}
   m_SourcePrefab: {fileID: 100100000, guid: 73f1fc87b1baf2841af1e310df85c941, type: 3}
+--- !u!1 &4249777357728954073 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 9084865290691496502, guid: 73f1fc87b1baf2841af1e310df85c941, type: 3}
+  m_PrefabInstance: {fileID: 4249777357728954072}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4249777357728954074
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4249777357728954073}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d360e9f6f6b9ef489e8b051a9ff14d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  maxHealth: 100
+  respawnPoint: {fileID: 0}
+  damageOverlay: {fileID: 0}
+  deathOverlay: {fileID: 0}
+  fadeSpeed: 5
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
