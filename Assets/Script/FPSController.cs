@@ -160,6 +160,16 @@ public class FPSController : MonoBehaviour
             if (Physics.Raycast(ray, out hit, 100f))
             {
                 Debug.Log("Hit: " + hit.transform.name);
+
+                // 💥 ยิงโดน Enemy
+                if (hit.transform.CompareTag("Enemy"))
+                {
+                    Enemy enemy = hit.transform.GetComponent<Enemy>();
+                    if (enemy != null)
+                    {
+                        enemy.TakeDamage(20);
+                    }
+                }
             }
         }
     }
