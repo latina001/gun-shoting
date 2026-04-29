@@ -12,7 +12,7 @@ public class Enemy : MonoBehaviour
     [Header("Stats")]
     public float health = 100f;
     public float detectRange = 15f;
-    public float attackRange = 10f; // 🎯 ระยะยิง
+    public float attackRange = 10f;
     public float damage = 10f;
 
     [Header("Shooting")]
@@ -23,11 +23,16 @@ public class Enemy : MonoBehaviour
     public float accuracy = 0.8f;
     public float shootRange = 50f;
 
+    [Header("Patrol")]
+    public Transform[] patrolPoints;
+    int currentPoint = 0;
+    public float waitTime = 2f;
+    float waitCounter = 0f;
+
     bool isAggro = false;
 
     void Start()
     {
-        // 🔥 บังคับให้ Enemy อยู่บน NavMesh
         NavMeshHit hit;
         if (NavMesh.SamplePosition(transform.position, out hit, 5f, NavMesh.AllAreas))
         {
@@ -36,6 +41,8 @@ public class Enemy : MonoBehaviour
 
         if (shootPoint == null)
             shootPoint = transform;
+
+        GoToNextPoint();
     }
 
     void Update()
@@ -44,46 +51,75 @@ public class Enemy : MonoBehaviour
 
         float distance = Vector3.Distance(transform.position, player.position);
 
+        // 🔥 ถ้าเห็น player หรือโดนยิง
         if (distance <= detectRange || isAggro)
         {
-            // 👀 หันหน้าไปหาผู้เล่น
-            Vector3 dir = player.position - transform.position;
-            dir.y = 0;
-            transform.rotation = Quaternion.LookRotation(dir);
+            HandleCombat(distance);
+        }
+        else
+        {
+            Patrol();
+        }
+    }
 
-            // 🏃 ถ้าไกลเกิน → เดินเข้า
-            if (distance > attackRange + 1f)
-            {
-                agent.isStopped = false;
-                agent.SetDestination(player.position);
-                anim.SetBool("isWalking", true);
-            }
-            else
-            {
-                // 🛑 อยู่ในระยะยิง → หยุด
-                agent.isStopped = true;
-                anim.SetBool("isWalking", false);
+    void HandleCombat(float distance)
+    {
+        Vector3 dir = player.position - transform.position;
+        dir.y = 0;
+        transform.rotation = Quaternion.LookRotation(dir);
 
-                Shoot();
-            }
+        if (distance > attackRange + 1f)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(player.position);
+            anim.SetBool("isWalking", true);
         }
         else
         {
             agent.isStopped = true;
             anim.SetBool("isWalking", false);
+
+            Shoot();
         }
     }
 
-    // 🔫 ยิง
+    void Patrol()
+    {
+        if (patrolPoints.Length == 0) return;
+
+        anim.SetBool("isWalking", true);
+
+        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+        {
+            waitCounter += Time.deltaTime;
+
+            if (waitCounter >= waitTime)
+            {
+                GoToNextPoint();
+                waitCounter = 0f;
+            }
+        }
+    }
+
+    void GoToNextPoint()
+    {
+        if (patrolPoints.Length == 0) return;
+
+        agent.isStopped = false;
+        agent.SetDestination(patrolPoints[currentPoint].position);
+
+        currentPoint = (currentPoint + 1) % patrolPoints.Length;
+    }
+
     void Shoot()
     {
         if (Time.time < nextFireTime) return;
 
         nextFireTime = Time.time + fireRate;
 
-        anim.SetTrigger("Shoot");
+        if (anim != null)
+            anim.SetTrigger("Shoot");
 
-        // 🎯 ยิงไปกลางตัว player จริง
         Vector3 target;
         Collider col = player.GetComponent<Collider>();
 
@@ -94,7 +130,6 @@ public class Enemy : MonoBehaviour
 
         Vector3 direction = (target - shootPoint.position).normalized;
 
-        // 🎲 ความมั่ว
         float spread = 1f - accuracy;
         direction += new Vector3(
             Random.Range(-spread, spread),
@@ -102,14 +137,12 @@ public class Enemy : MonoBehaviour
             Random.Range(-spread, spread)
         );
 
-        // 🔴 debug ray
+        // 🔴 เส้น Ray (ดูใน Scene)
         Debug.DrawRay(shootPoint.position, direction * shootRange, Color.red, 1f);
 
         RaycastHit hit;
         if (Physics.Raycast(shootPoint.position, direction, out hit, shootRange))
         {
-            Debug.Log("Enemy ยิงโดน: " + hit.transform.name);
-
             if (hit.transform.CompareTag("Player"))
             {
                 PlayerHealth ph = hit.transform.GetComponentInParent<PlayerHealth>();
@@ -121,14 +154,10 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // ❤️ โดนยิง
     public void TakeDamage(float amount)
     {
         health -= amount;
-
-        isAggro = true; // 🔥 ยิง = โกรธ
-
-        Debug.Log("Enemy HP: " + health);
+        isAggro = true;
 
         if (health <= 0)
         {
@@ -138,7 +167,8 @@ public class Enemy : MonoBehaviour
 
     void Die()
     {
-        anim.SetTrigger("Die");
+        if (anim != null)
+            anim.SetTrigger("Die");
 
         if (agent != null)
             agent.enabled = false;
