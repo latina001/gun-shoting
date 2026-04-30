@@ -15,8 +15,20 @@ public class PlayerHealth : MonoBehaviour
     [Header("UI")]
     public Image damageOverlay;
     public Image deathOverlay;
-
     public float fadeSpeed = 5f;
+
+    [Header("Auto Heal ❤️")]
+    public float healDelay = 5f;
+    public float healSpeed = 10f;
+    float lastDamageTime;
+
+    [Header("Low Health Effects 💓")]
+    public float lowHealthThreshold = 30f;
+
+    public AudioSource heartbeatAudio;
+    public AudioSource breathingAudio;
+
+    bool isLowHealth = false;
 
     void Start()
     {
@@ -27,6 +39,10 @@ public class PlayerHealth : MonoBehaviour
 
         if (respawnPoint == null)
             respawnPoint = transform;
+
+        // ปิดเสียงตอนเริ่ม
+        if (heartbeatAudio != null) heartbeatAudio.Stop();
+        if (breathingAudio != null) breathingAudio.Stop();
     }
 
     void Update()
@@ -39,15 +55,49 @@ public class PlayerHealth : MonoBehaviour
             c.a = Mathf.Lerp(c.a, alpha * 0.6f, Time.deltaTime * fadeSpeed);
             damageOverlay.color = c;
         }
+
+        // ❤️ Auto Heal
+        if (Time.time - lastDamageTime >= healDelay && currentHealth < maxHealth)
+        {
+            currentHealth += healSpeed * Time.deltaTime;
+            currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+        }
+
+        HandleLowHealthEffects();
     }
 
     public void TakeDamage(float damage)
     {
         currentHealth -= damage;
+        lastDamageTime = Time.time;
 
         if (currentHealth <= 0)
         {
             Die();
+        }
+    }
+
+    void HandleLowHealthEffects()
+    {
+        if (currentHealth <= lowHealthThreshold)
+        {
+            if (!isLowHealth)
+            {
+                isLowHealth = true;
+
+                if (heartbeatAudio != null) heartbeatAudio.Play();
+                if (breathingAudio != null) breathingAudio.Play();
+            }
+        }
+        else
+        {
+            if (isLowHealth)
+            {
+                isLowHealth = false;
+
+                if (heartbeatAudio != null) heartbeatAudio.Stop();
+                if (breathingAudio != null) breathingAudio.Stop();
+            }
         }
     }
 
@@ -67,12 +117,9 @@ public class PlayerHealth : MonoBehaviour
 
         currentHealth = maxHealth;
 
-        // 🔥 ไป checkpoint ล่าสุด
         transform.position = Checkpoint.lastCheckpoint;
 
-        // 🔥 RESET ENEMY (เวอร์ชันใหม่)
         Enemy[] enemies = Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None);
-
         foreach (Enemy e in enemies)
         {
             e.ResetEnemy();

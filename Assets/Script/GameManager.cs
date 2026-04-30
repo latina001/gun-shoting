@@ -43,7 +43,7 @@ public class GameManager : MonoBehaviour
             resultText.text = "YOU WIN!";
 
         if (timeText != null)
-            timeText.text = "Time: " + timer.ToString("F2") + " sec";
+            timeText.text = "Time: " + timer.ToString("F2") + " secs";
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;

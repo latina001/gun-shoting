@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
-using TMPro; // 🔥 ใช้ตัวนี้แทน UI.Text
+using TMPro;
 
 public class FPSController : MonoBehaviour
 {
@@ -53,7 +53,13 @@ public class FPSController : MonoBehaviour
     public float zoomSensitivity = 100f;
 
     [Header("UI")]
-    public TMP_Text ammoText; // 🔥 เปลี่ยนตรงนี้
+    public TMP_Text ammoText;
+
+    [Header("Audio 🔊")]
+    public AudioSource audioSource;
+    public AudioClip shootSound;
+    public AudioClip reloadSound;
+    public AudioClip emptySound;
 
     Camera cam;
     float yVelocity;
@@ -69,9 +75,6 @@ public class FPSController : MonoBehaviour
         normalCameraY = cameraHolder.localPosition.y;
 
         cam = Camera.main;
-
-        if (anim == null)
-            Debug.LogError("❌ Animator not assigned!");
     }
 
     void Update()
@@ -99,11 +102,9 @@ public class FPSController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
             Jump();
 
-        // 🔫 UI
+        // UI Ammo
         if (ammoText != null)
-        {
             ammoText.text = currentAmmo + " / " + maxAmmo;
-        }
     }
 
     void Look()
@@ -129,7 +130,6 @@ public class FPSController : MonoBehaviour
         float z = Input.GetAxis("Vertical");
 
         float speed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
-
         if (isCrouching) speed *= 0.5f;
 
         Vector3 move = transform.right * x + transform.forward * z;
@@ -156,7 +156,13 @@ public class FPSController : MonoBehaviour
         if (currentAmmo <= 0)
         {
             if (Input.GetButtonDown("Fire1"))
+            {
                 anim.SetTrigger("Empty");
+
+                // 🔊 เสียงกระสุนหมด
+                if (audioSource != null && emptySound != null)
+                    audioSource.PlayOneShot(emptySound);
+            }
             return;
         }
 
@@ -168,6 +174,10 @@ public class FPSController : MonoBehaviour
             anim.SetTrigger("Shoot");
             recoilX += recoilAmount;
 
+            // 🔊 เสียงยิง
+            if (audioSource != null && shootSound != null)
+                audioSource.PlayOneShot(shootSound);
+
             Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             RaycastHit hit;
 
@@ -177,9 +187,7 @@ public class FPSController : MonoBehaviour
                 {
                     Enemy enemy = hit.transform.GetComponent<Enemy>();
                     if (enemy != null)
-                    {
                         enemy.TakeDamage(30);
-                    }
                 }
             }
         }
@@ -191,6 +199,10 @@ public class FPSController : MonoBehaviour
 
         isReloading = true;
         anim.SetTrigger("Reload");
+
+        // 🔊 เสียงรีโหลด
+        if (audioSource != null && reloadSound != null)
+            audioSource.PlayOneShot(reloadSound);
 
         yield return new WaitForSeconds(reloadTime);
 
