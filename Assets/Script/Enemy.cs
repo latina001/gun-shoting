@@ -26,6 +26,9 @@ public class Enemy : MonoBehaviour
 
     bool aggro;
 
+    Vector3 startPos;
+    Quaternion startRot;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -42,6 +45,9 @@ public class Enemy : MonoBehaviour
             agent.Warp(hit.position);
         }
 
+        startPos = transform.position;
+        startRot = transform.rotation;
+
         agent.stoppingDistance = 1f;
         agent.updatePosition = true;
         agent.updateRotation = true;
@@ -56,7 +62,6 @@ public class Enemy : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, player.position);
 
-        // 🔥 หลุด aggro
         if (aggro && dist > loseRange)
         {
             aggro = false;
@@ -64,7 +69,6 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        // 🔥 เริ่ม aggro
         if (dist <= detectRange)
             aggro = true;
 
@@ -76,8 +80,6 @@ public class Enemy : MonoBehaviour
 
     void ChaseAndFight(float dist)
     {
-        if (!agent.isOnNavMesh) return;
-
         agent.isStopped = false;
         agent.SetDestination(player.position);
 
@@ -133,18 +135,13 @@ public class Enemy : MonoBehaviour
         nextFireTime = Time.time + fireRate;
         anim.SetTrigger("Shoot");
 
-        // 🎯 ยิงไปที่หัวผู้เล่น
         Vector3 target = player.position + Vector3.up * 1.5f;
-
         Vector3 dir = (target - shootPoint.position).normalized;
 
         float spread = 1f - accuracy;
-
-        // 🔥 สำคัญ: spread ห้ามยุ่ง Y
         Vector2 randomCircle = Random.insideUnitCircle * spread;
 
         dir += new Vector3(randomCircle.x, randomCircle.y * 0.2f, 0);
-
         dir = dir.normalized;
 
         Debug.DrawRay(shootPoint.position, dir * shootRange, Color.red, 1f);
@@ -159,6 +156,7 @@ public class Enemy : MonoBehaviour
             }
         }
     }
+
     public void TakeDamage(float dmg)
     {
         health -= dmg;
@@ -170,5 +168,22 @@ public class Enemy : MonoBehaviour
             agent.enabled = false;
             Destroy(gameObject, 2f);
         }
+    }
+
+    // 🔥 RESET ENEMY
+    public void ResetEnemy()
+    {
+        health = 100f;
+        aggro = false;
+
+        if (agent != null)
+        {
+            agent.enabled = false;
+            transform.position = startPos;
+            transform.rotation = startRot;
+            agent.enabled = true;
+        }
+
+        GoPatrol();
     }
 }

@@ -13,8 +13,8 @@ public class PlayerHealth : MonoBehaviour
     FPSController fps;
 
     [Header("UI")]
-    public Image damageOverlay; // 🔴 จอแดง
-    public Image deathOverlay;  // 🖤 จอดำ
+    public Image damageOverlay;
+    public Image deathOverlay;
 
     public float fadeSpeed = 5f;
 
@@ -24,12 +24,15 @@ public class PlayerHealth : MonoBehaviour
 
         controller = GetComponent<CharacterController>();
         fps = GetComponent<FPSController>();
+
+        if (respawnPoint == null)
+            respawnPoint = transform;
     }
 
     void Update()
     {
-        // 🔴 จอแดงตามเลือด
         float alpha = 1f - (currentHealth / maxHealth);
+
         if (damageOverlay != null)
         {
             Color c = damageOverlay.color;
@@ -42,8 +45,6 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth -= damage;
 
-        Debug.Log("Player HP: " + currentHealth);
-
         if (currentHealth <= 0)
         {
             Die();
@@ -52,32 +53,34 @@ public class PlayerHealth : MonoBehaviour
 
     void Die()
     {
-        Debug.Log("💀 Player Dead!");
         StartCoroutine(Respawn());
     }
 
     IEnumerator Respawn()
     {
-        // 🔒 ปิดการควบคุม
         controller.enabled = false;
         fps.enabled = false;
 
-        // 🖤 fade ดำ
         yield return StartCoroutine(Fade(deathOverlay, 1f));
 
         yield return new WaitForSeconds(1f);
 
-        // 🔄 รีค่า
         currentHealth = maxHealth;
 
-        if (respawnPoint != null)
-            transform.position = respawnPoint.position;
+        // 🔥 ไป checkpoint ล่าสุด
+        transform.position = Checkpoint.lastCheckpoint;
 
-        // 🔓 เปิดควบคุม
+        // 🔥 RESET ENEMY (เวอร์ชันใหม่)
+        Enemy[] enemies = Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None);
+
+        foreach (Enemy e in enemies)
+        {
+            e.ResetEnemy();
+        }
+
         controller.enabled = true;
         fps.enabled = true;
 
-        // 🖤 fade กลับ
         yield return StartCoroutine(Fade(deathOverlay, 0f));
     }
 
@@ -91,6 +94,7 @@ public class PlayerHealth : MonoBehaviour
         while (time < 0.5f)
         {
             float a = Mathf.Lerp(start, target, time / 0.5f);
+
             Color c = img.color;
             c.a = a;
             img.color = c;
