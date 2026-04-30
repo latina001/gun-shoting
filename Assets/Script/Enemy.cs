@@ -8,8 +8,18 @@ public class Enemy : MonoBehaviour
     public Animator anim;
     public Transform shootPoint;
 
+    [Header("Health")]
     public float health = 100f;
 
+    [Header("Damage")]
+    public float damage = 10f;
+    public float headshotMultiplier = 2f;
+
+    [Header("Range Damage Drop")]
+    public float minDamageMultiplier = 0.4f;
+    public float maxShootRange = 50f;
+
+    [Header("AI")]
     public float detectRange = 15f;
     public float attackRange = 10f;
     public float loseRange = 25f;
@@ -18,7 +28,6 @@ public class Enemy : MonoBehaviour
     float nextFireTime;
 
     public float accuracy = 0.8f;
-    public float shootRange = 50f;
 
     public Transform[] patrolPoints;
     int index = 0;
@@ -49,9 +58,6 @@ public class Enemy : MonoBehaviour
         startRot = transform.rotation;
 
         agent.stoppingDistance = 1f;
-        agent.updatePosition = true;
-        agent.updateRotation = true;
-
         GoPatrol();
     }
 
@@ -73,12 +79,12 @@ public class Enemy : MonoBehaviour
             aggro = true;
 
         if (aggro)
-            ChaseAndFight(dist);
+            Chase(dist);
         else
             Patrol();
     }
 
-    void ChaseAndFight(float dist)
+    void Chase(float dist)
     {
         agent.isStopped = false;
         agent.SetDestination(player.position);
@@ -95,7 +101,7 @@ public class Enemy : MonoBehaviour
         {
             agent.isStopped = true;
             anim.SetBool("isWalking", false);
-            Shoot();
+            Shoot(dist);
         }
     }
 
@@ -122,13 +128,12 @@ public class Enemy : MonoBehaviour
         if (patrolPoints.Length == 0) return;
         if (!agent.isOnNavMesh) return;
 
-        agent.isStopped = false;
         agent.SetDestination(patrolPoints[index].position);
-
         index = (index + 1) % patrolPoints.Length;
     }
 
-    void Shoot()
+    // 🔥 ยิงพร้อมระบบดาเมจขั้นสูง
+    void Shoot(float distanceToPlayer)
     {
         if (Time.time < nextFireTime) return;
 
@@ -144,15 +149,31 @@ public class Enemy : MonoBehaviour
         dir += new Vector3(randomCircle.x, randomCircle.y * 0.2f, 0);
         dir = dir.normalized;
 
-        Debug.DrawRay(shootPoint.position, dir * shootRange, Color.red, 1f);
+        Debug.DrawRay(shootPoint.position, dir * maxShootRange, Color.red, 1f);
 
-        if (Physics.Raycast(shootPoint.position, dir, out RaycastHit hit, shootRange))
+        if (Physics.Raycast(shootPoint.position, dir, out RaycastHit hit, maxShootRange))
         {
             if (hit.transform.CompareTag("Player"))
             {
                 var hp = hit.transform.GetComponentInParent<PlayerHealth>();
                 if (hp != null)
-                    hp.TakeDamage(10);
+                {
+                    float finalDamage = damage;
+
+                    // 🎯 HEADSHOT
+                    if (hit.collider.name.ToLower().Contains("head"))
+                    {
+                        finalDamage *= headshotMultiplier;
+                    }
+
+                    // 📉 ลดดาเมจตามระยะ
+                    float distPercent = Mathf.Clamp01(1f - (distanceToPlayer / maxShootRange));
+                    float rangeMultiplier = Mathf.Lerp(minDamageMultiplier, 1f, distPercent);
+
+                    finalDamage *= rangeMultiplier;
+
+                    hp.TakeDamage(finalDamage);
+                }
             }
         }
     }
@@ -170,18 +191,21 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    // 🔥 RESET ENEMY
     public void ResetEnemy()
     {
         health = 100f;
         aggro = false;
 
-        if (agent != null)
+        agent.ResetPath();
+        agent.Warp(startPos);
+
+        transform.position = startPos;
+        transform.rotation = startRot;
+
+        if (anim != null)
         {
-            agent.enabled = false;
-            transform.position = startPos;
-            transform.rotation = startRot;
-            agent.enabled = true;
+            anim.Rebind();
+            anim.Update(0f);
         }
 
         GoPatrol();
