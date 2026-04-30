@@ -3,78 +3,127 @@ using UnityEngine.AI;
 
 public class Enemy : MonoBehaviour
 {
-    [Header("References")]
     public NavMeshAgent agent;
     public Transform player;
     public Animator anim;
     public Transform shootPoint;
 
-    [Header("Stats")]
     public float health = 100f;
+
     public float detectRange = 15f;
     public float attackRange = 10f;
-    public float damage = 10f;
+    public float loseRange = 25f;
 
-    [Header("Shooting")]
     public float fireRate = 1f;
-    float nextFireTime = 0f;
+    float nextFireTime;
 
-    [Range(0f, 1f)]
-    public float accuracy = 0.85f;
+    public float accuracy = 0.8f;
     public float shootRange = 50f;
 
-    bool isAggro = false;
+    public Transform[] patrolPoints;
+    int index = 0;
+    float wait;
+
+    bool aggro;
 
     void Start()
     {
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(transform.position, out hit, 5f, NavMesh.AllAreas))
-        {
-            transform.position = hit.position;
-        }
+        agent = GetComponent<NavMeshAgent>();
+
+        if (player == null)
+            player = GameObject.FindGameObjectWithTag("Player")?.transform;
 
         if (shootPoint == null)
             shootPoint = transform;
+
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(transform.position, out hit, 10f, NavMesh.AllAreas))
+        {
+            agent.Warp(hit.position);
+        }
+
+        agent.stoppingDistance = 1f;
+        agent.updatePosition = true;
+        agent.updateRotation = true;
+
+        GoPatrol();
     }
 
     void Update()
     {
-        if (!agent.isOnNavMesh || player == null) return;
+        if (agent == null || player == null) return;
+        if (!agent.isOnNavMesh) return;
 
-        float distance = Vector3.Distance(transform.position, player.position);
+        float dist = Vector3.Distance(transform.position, player.position);
 
-        if (distance <= detectRange || isAggro)
+        // 🔥 หลุด aggro
+        if (aggro && dist > loseRange)
         {
-            // 👀 หันหน้า
-            Vector3 dir = player.position - transform.position;
-            dir.y = 0;
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
-                Quaternion.LookRotation(dir),
-                Time.deltaTime * 10f
-            );
-
-            // 🏃 เดินเฉพาะตอน "ไกลจริง"
-            if (distance > attackRange + 1f)
-            {
-                agent.isStopped = false;
-                agent.SetDestination(player.position);
-                anim.SetBool("isWalking", true);
-            }
-            else
-            {
-                // 🛑 อยู่ในระยะ → หยุดยิง
-                agent.isStopped = true;
-                anim.SetBool("isWalking", false);
-
-                Shoot();
-            }
+            aggro = false;
+            GoPatrol();
+            return;
         }
+
+        // 🔥 เริ่ม aggro
+        if (dist <= detectRange)
+            aggro = true;
+
+        if (aggro)
+            ChaseAndFight(dist);
         else
+            Patrol();
+    }
+
+    void ChaseAndFight(float dist)
+    {
+        if (!agent.isOnNavMesh) return;
+
+        agent.isStopped = false;
+        agent.SetDestination(player.position);
+
+        anim.SetBool("isWalking", true);
+
+        Vector3 dir = player.position - transform.position;
+        dir.y = 0;
+
+        if (dir != Vector3.zero)
+            transform.rotation = Quaternion.LookRotation(dir);
+
+        if (dist <= attackRange)
         {
             agent.isStopped = true;
             anim.SetBool("isWalking", false);
+            Shoot();
         }
+    }
+
+    void Patrol()
+    {
+        if (patrolPoints.Length == 0) return;
+
+        anim.SetBool("isWalking", true);
+
+        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+        {
+            wait += Time.deltaTime;
+
+            if (wait > 0.5f)
+            {
+                GoPatrol();
+                wait = 0;
+            }
+        }
+    }
+
+    void GoPatrol()
+    {
+        if (patrolPoints.Length == 0) return;
+        if (!agent.isOnNavMesh) return;
+
+        agent.isStopped = false;
+        agent.SetDestination(patrolPoints[index].position);
+
+        index = (index + 1) % patrolPoints.Length;
     }
 
     void Shoot()
@@ -82,81 +131,44 @@ public class Enemy : MonoBehaviour
         if (Time.time < nextFireTime) return;
 
         nextFireTime = Time.time + fireRate;
+        anim.SetTrigger("Shoot");
 
-        if (anim != null)
-            anim.SetTrigger("Shoot");
+        // 🎯 ยิงไปที่หัวผู้เล่น
+        Vector3 target = player.position + Vector3.up * 1.5f;
 
-        // 🎯 เล็ง "กลางตัวจริง"
-        Vector3 target;
-        Collider col = player.GetComponent<Collider>();
+        Vector3 dir = (target - shootPoint.position).normalized;
 
-        if (col != null)
-            target = col.bounds.center;
-        else
-            target = player.position + Vector3.up * 1.5f;
-
-        Vector3 direction = (target - shootPoint.position).normalized;
-
-        // 🎲 spread
         float spread = 1f - accuracy;
-        direction += new Vector3(
-            Random.Range(-spread, spread),
-            Random.Range(-spread, spread),
-            Random.Range(-spread, spread)
-        );
 
-        RaycastHit hit;
+        // 🔥 สำคัญ: spread ห้ามยุ่ง Y
+        Vector2 randomCircle = Random.insideUnitCircle * spread;
 
-        if (Physics.Raycast(shootPoint.position, direction, out hit, shootRange))
+        dir += new Vector3(randomCircle.x, randomCircle.y * 0.2f, 0);
+
+        dir = dir.normalized;
+
+        Debug.DrawRay(shootPoint.position, dir * shootRange, Color.red, 1f);
+
+        if (Physics.Raycast(shootPoint.position, dir, out RaycastHit hit, shootRange))
         {
-            // 🔴 ยิงโดน
-            Debug.DrawLine(shootPoint.position, hit.point, Color.red, 1f);
-
-            Debug.Log("Enemy ยิงโดน: " + hit.transform.name);
-
             if (hit.transform.CompareTag("Player"))
             {
-                PlayerHealth ph = hit.transform.GetComponentInParent<PlayerHealth>();
-                if (ph != null)
-                {
-                    ph.TakeDamage(damage);
-                }
+                var hp = hit.transform.GetComponentInParent<PlayerHealth>();
+                if (hp != null)
+                    hp.TakeDamage(10);
             }
         }
-        else
-        {
-            // 🔵 ยิงพลาด
-            Debug.DrawLine(
-                shootPoint.position,
-                shootPoint.position + direction * shootRange,
-                Color.blue,
-                1f
-            );
-        }
     }
-
-    public void TakeDamage(float amount)
+    public void TakeDamage(float dmg)
     {
-        health -= amount;
-
-        isAggro = true; // 🔥 ยิง = โกรธทันที
-
-        Debug.Log("Enemy HP: " + health);
+        health -= dmg;
+        aggro = true;
 
         if (health <= 0)
         {
-            Die();
-        }
-    }
-
-    void Die()
-    {
-        if (anim != null)
             anim.SetTrigger("Die");
-
-        if (agent != null)
             agent.enabled = false;
-
-        Destroy(gameObject, 2f);
+            Destroy(gameObject, 2f);
+        }
     }
 }
