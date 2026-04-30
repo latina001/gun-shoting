@@ -178,7 +178,7 @@ public class FPSController : MonoBehaviour
                     Enemy enemy = hit.transform.GetComponent<Enemy>();
                     if (enemy != null)
                     {
-                        enemy.TakeDamage(20);
+                        enemy.TakeDamage(30);
                     }
                 }
             }

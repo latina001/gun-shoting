@@ -8,19 +8,18 @@ public class Enemy : MonoBehaviour
     public Animator anim;
     public Transform shootPoint;
 
-    [Header("Health Settings")]
+    [Header("Health")]
     public float health = 100f;
-    private float maxHealth; // ตัวแปรสำหรับจำค่าเลือดเริ่มต้น (Max HP)
+    float maxHealth;
 
-    [Header("Damage Settings")]
+    [Header("Boss")]
+    public bool isBoss = false; // 🔥 สำคัญมาก
+
+    [Header("Damage")]
     public float damage = 10f;
     public float headshotMultiplier = 2f;
 
-    [Header("Range Damage Drop")]
-    public float minDamageMultiplier = 0.4f;
-    public float maxShootRange = 50f;
-
-    [Header("AI Settings")]
+    [Header("AI")]
     public float detectRange = 15f;
     public float attackRange = 10f;
     public float loseRange = 25f;
@@ -35,7 +34,7 @@ public class Enemy : MonoBehaviour
     float wait;
 
     bool aggro;
-    bool isDead = false;
+    bool isDead;
 
     Vector3 startPos;
     Quaternion startRot;
@@ -43,21 +42,14 @@ public class Enemy : MonoBehaviour
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-
-        // เก็บค่าเลือดเริ่มต้นไว้ใช้ตอน Reset (สำคัญมากสำหรับ Boss)
         maxHealth = health;
 
         if (player == null)
             player = GameObject.FindGameObjectWithTag("Player")?.transform;
 
-        if (shootPoint == null)
-            shootPoint = transform;
-
-        // บันทึกตำแหน่งและมุมหมุนเริ่มต้น
         startPos = transform.position;
         startRot = transform.rotation;
 
-        // ตรวจสอบตำแหน่งบน NavMesh
         NavMeshHit hit;
         if (NavMesh.SamplePosition(transform.position, out hit, 10f, NavMesh.AllAreas))
         {
@@ -65,17 +57,16 @@ public class Enemy : MonoBehaviour
         }
 
         agent.stoppingDistance = 1f;
+
         GoPatrol();
     }
 
     void Update()
     {
-        if (isDead || agent == null || player == null) return;
-        if (!agent.isOnNavMesh) return;
+        if (isDead || player == null || !agent.isOnNavMesh) return;
 
         float dist = Vector3.Distance(transform.position, player.position);
 
-        // ระบบเลิกตาม (Lose Aggro)
         if (aggro && dist > loseRange)
         {
             aggro = false;
@@ -83,7 +74,6 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        // ระบบตรวจจับ (Detect)
         if (dist <= detectRange)
             aggro = true;
 
@@ -106,7 +96,6 @@ public class Enemy : MonoBehaviour
         if (dir != Vector3.zero)
             transform.rotation = Quaternion.LookRotation(dir);
 
-        // ระยะโจมตี
         if (dist <= attackRange)
         {
             agent.isStopped = true;
@@ -119,11 +108,10 @@ public class Enemy : MonoBehaviour
     {
         if (patrolPoints.Length == 0) return;
 
-        if (anim != null) anim.SetBool("isWalking", true);
-
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
             wait += Time.deltaTime;
+
             if (wait > 0.5f)
             {
                 GoPatrol();
@@ -145,42 +133,27 @@ public class Enemy : MonoBehaviour
         if (Time.time < nextFireTime) return;
 
         nextFireTime = Time.time + fireRate;
+
         if (anim != null) anim.SetTrigger("Shoot");
 
         Vector3 target = player.position + Vector3.up * 1.5f;
         Vector3 dir = (target - shootPoint.position).normalized;
 
         float spread = 1f - accuracy;
-        Vector2 randomCircle = Random.insideUnitCircle * spread;
+        Vector2 rnd = Random.insideUnitCircle * spread;
 
-        dir += new Vector3(randomCircle.x, randomCircle.y * 0.2f, 0);
+        dir += new Vector3(rnd.x, rnd.y * 0.2f, 0);
         dir = dir.normalized;
 
-        Debug.DrawRay(shootPoint.position, dir * maxShootRange, Color.red, 1f);
+        Debug.DrawRay(shootPoint.position, dir * 50f, Color.red, 1f);
 
-        if (Physics.Raycast(shootPoint.position, dir, out RaycastHit hit, maxShootRange))
+        if (Physics.Raycast(shootPoint.position, dir, out RaycastHit hit, 50f))
         {
             if (hit.transform.CompareTag("Player"))
             {
                 var hp = hit.transform.GetComponentInParent<PlayerHealth>();
                 if (hp != null)
-                {
-                    float finalDamage = damage;
-
-                    // 🎯 HEADSHOT
-                    if (hit.collider.name.ToLower().Contains("head"))
-                    {
-                        finalDamage *= headshotMultiplier;
-                    }
-
-                    // 📉 ลดดาเมจตามระยะ
-                    float distPercent = Mathf.Clamp01(1f - (distanceToPlayer / maxShootRange));
-                    float rangeMultiplier = Mathf.Lerp(minDamageMultiplier, 1f, distPercent);
-
-                    finalDamage *= rangeMultiplier;
-
-                    hp.TakeDamage(finalDamage);
-                }
+                    hp.TakeDamage(damage);
             }
         }
     }
@@ -190,35 +163,38 @@ public class Enemy : MonoBehaviour
         if (isDead) return;
 
         health -= dmg;
-        aggro = true; // เมื่อโดนยิงจะ Aggro ทันที
+        aggro = true;
 
         if (health <= 0)
-        {
             Die();
-        }
     }
 
     void Die()
     {
         isDead = true;
-        if (anim != null) anim.SetTrigger("Die");
+
+        if (anim != null)
+            anim.SetTrigger("Die");
+
+        // 🔥 สำคัญ: จบเกมเฉพาะ "บอส"
+        if (isBoss && GameManager.instance != null)
+        {
+            GameManager.instance.BossKilled();
+        }
+
         agent.enabled = false;
-        Destroy(gameObject, 3f);
+        Destroy(gameObject, 2f);
     }
 
-    // ฟังก์ชันรีเซ็ตตัวละคร (ใช้ตอน Boss เริ่มใหม่ หรือตายแล้วเกิดใหม่)
     public void ResetEnemy()
     {
         isDead = false;
-        health = maxHealth; // คืนค่าเลือดตามเลือดสูงสุดที่บันทึกไว้ในตอน Start
+        health = maxHealth;
         aggro = false;
 
-        if (agent != null)
-        {
-            agent.enabled = true;
-            agent.Warp(startPos); // วาร์ปกลับจุดเกิด
-            if (agent.isOnNavMesh) agent.ResetPath();
-        }
+        agent.enabled = true;
+        agent.Warp(startPos);
+        agent.ResetPath();
 
         transform.position = startPos;
         transform.rotation = startRot;
@@ -230,6 +206,5 @@ public class Enemy : MonoBehaviour
         }
 
         GoPatrol();
-        Debug.Log(gameObject.name + " has been reset with " + health + " HP.");
     }
 }
