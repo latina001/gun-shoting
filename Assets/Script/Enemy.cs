@@ -8,12 +8,22 @@ public class Enemy : MonoBehaviour
     public Animator anim;
     public Transform shootPoint;
 
+    [Header("Muzzle Flash (Image)")]
+    public SpriteRenderer muzzleFlashSprite;
+    public float muzzleFlashDuration = 0.05f;
+    public float muzzleFlashScale = 0.1f;
+    float muzzleFlashTimer;
+
+    [Header("Sound")]
+    public AudioSource audioSource;
+    public AudioClip shootSound;
+
     [Header("Health")]
     public float health = 100f;
     float maxHealth;
 
     [Header("Boss")]
-    public bool isBoss = false; // 🔥 สำคัญมาก
+    public bool isBoss = false;
 
     [Header("Damage")]
     public float damage = 10f;
@@ -52,11 +62,12 @@ public class Enemy : MonoBehaviour
 
         NavMeshHit hit;
         if (NavMesh.SamplePosition(transform.position, out hit, 10f, NavMesh.AllAreas))
-        {
             agent.Warp(hit.position);
-        }
 
         agent.stoppingDistance = 1f;
+
+        if (muzzleFlashSprite != null)
+            muzzleFlashSprite.enabled = false;
 
         GoPatrol();
     }
@@ -64,6 +75,13 @@ public class Enemy : MonoBehaviour
     void Update()
     {
         if (isDead || player == null || !agent.isOnNavMesh) return;
+
+        if (muzzleFlashSprite != null && muzzleFlashSprite.enabled)
+        {
+            muzzleFlashTimer -= Time.deltaTime;
+            if (muzzleFlashTimer <= 0f)
+                muzzleFlashSprite.enabled = false;
+        }
 
         float dist = Vector3.Distance(transform.position, player.position);
 
@@ -81,6 +99,21 @@ public class Enemy : MonoBehaviour
             Chase(dist);
         else
             Patrol();
+    }
+
+    void ShowMuzzleFlash()
+    {
+        if (muzzleFlashSprite == null) return;
+
+        muzzleFlashSprite.enabled = true;
+
+        float randomAngle = Random.Range(0f, 360f);
+        muzzleFlashSprite.transform.localRotation = Quaternion.Euler(0f, 0f, randomAngle);
+
+        float randomScale = muzzleFlashScale * Random.Range(0.8f, 1.2f);
+        muzzleFlashSprite.transform.localScale = Vector3.one * randomScale;
+
+        muzzleFlashTimer = muzzleFlashDuration;
     }
 
     void Chase(float dist)
@@ -111,7 +144,6 @@ public class Enemy : MonoBehaviour
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
         {
             wait += Time.deltaTime;
-
             if (wait > 0.5f)
             {
                 GoPatrol();
@@ -135,6 +167,11 @@ public class Enemy : MonoBehaviour
         nextFireTime = Time.time + fireRate;
 
         if (anim != null) anim.SetTrigger("Shoot");
+
+        ShowMuzzleFlash();
+
+        if (audioSource != null && shootSound != null)
+            audioSource.PlayOneShot(shootSound);
 
         Vector3 target = player.position + Vector3.up * 1.5f;
         Vector3 dir = (target - shootPoint.position).normalized;
@@ -176,11 +213,8 @@ public class Enemy : MonoBehaviour
         if (anim != null)
             anim.SetTrigger("Die");
 
-        // 🔥 สำคัญ: จบเกมเฉพาะ "บอส"
         if (isBoss && GameManager.instance != null)
-        {
             GameManager.instance.BossKilled();
-        }
 
         agent.enabled = false;
         Destroy(gameObject, 2f);
